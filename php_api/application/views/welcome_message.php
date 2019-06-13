@@ -75,14 +75,25 @@
 <body>
 
 <div id="container">
-    <h1>Hashes page!</h1> <?
-     <form action="/welcome" method="get">Hash #: <input type="text" name="id"><input type="submit" value="Submit"></form></form>
-     ?>
+    <h1>Hashes page!</h1> 
+     
     <div id="body">
+        <?php
+            $this->load->helper('form');
+            echo form_open('welcome/display', ['param' => 'param']);
+            echo form_label('Hash # ', 'param');
+            echo form_input(['name' => 'param']);
+            echo form_submit('submit', 'Go');
+            echo form_close();
 
-        <h2><a href="<?php echo site_url('rest-server'); ?>">REST Server Tests</a></h2>
-
-        <?php 
+        if(isset($hashid)){
+            echo "<h2>Hash number: " . $hashid;
+            echo "<p float:right>";
+            echo form_open('welcome');
+            echo form_submit('submit', 'Reset');
+            echo form_close();
+            echo "</p>";
+        }
 
         foreach ($database as $row)
         {

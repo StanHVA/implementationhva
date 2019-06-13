@@ -3,11 +3,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Welcome extends CI_Controller {
 
+	public function __construct(){
+        parent::__construct();
+		$this->load->helper('url');
+		$this->load->database();
+	}
+
 	public function index()
 	{
-		$this->load->helper('url');
-
-		$this->load->database();
 
 		$query = $this->db->get('hashes');
 
@@ -18,16 +21,14 @@ class Welcome extends CI_Controller {
 
 	public function display($param=NULL)
 	{
+		$param = $this->input->post('param');
 		if (is_null($param)) {
 			die("Paramater wasn't passed properly");
 		}
 
-		$this->load->helper('url');
-
-		$this->load->database();
-
 		$query = $this->db->get_where('hashes', array('hashID' => $param));
 
+		$data['hashid'] = $param;
 		$data['database'] = $query->result();		
 
 		$this->load->view('welcome_message', $data);
