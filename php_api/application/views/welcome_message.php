@@ -102,6 +102,7 @@
             echo '<br>Hash: '   , $row->hash;
             echo '<br>Type: '   , $row->type;
             echo '<br>Time: '   , $row->time;
+            echo '<br>HashID: ' , $row->hashID;
             echo '</code><br>';
         }
 
