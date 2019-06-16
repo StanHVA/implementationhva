@@ -194,8 +194,8 @@ int main(int argc, char *argv[]) {
     }
 
     for(int i=0; i < outfiles.size(); i++){
-        cout << outfiles[i] << "    " << md5files[i] << endl;
-        //perform_curl(outfiles[i], md5files[i]);
+        //cout << outfiles[i] << "    " << md5files[i] << endl;
+        perform_curl(outfiles[i], md5files[i]);
     }
 
     return 0;
