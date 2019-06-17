@@ -19,92 +19,112 @@
 #include <curl/curl.h>
 #include <json-c/json.h>
 
-namespace fs = std::experimental::filesystem;
-
 using namespace std;
 
-string fsToString(const std::experimental::filesystem::v1::directory_entry e) {
-    std::ostringstream oss;
-    oss << e;
-    return (oss.str());
+namespace fs = experimental::filesystem;
+
+string fsToString(const experimental::filesystem::v1::directory_entry e) {
+	ostringstream oss;
+	oss << e;
+	return (oss.str());
 }
 
 class Scanner {
 private:
-    string directory;       // Data member (Variable)
-    int fileCount;          // Aantal files in de dir
-    std::vector<std::string> files;                 // bestanden in de dir. Gaan later door de hash generator
-    std::vector<std::string> recursiveDirectories;  // Program scant recusively, dus er moet een vector komen met
-                                                    // directories in de scanner directory
-    std::vector<char> charFiles;
-    std::vector<char> charDirectories;
+	string directory;       // Data member (Variable)
+	int fileCount;			// Aantal files in de dir
+	vector<string> files;					// bestanden in de dir. Gaan later door de hash generator
+	vector<string> recursiveDirectories;	// Program scant recusively, dus er moet een vector komen met
+													// directories in de scanner directory
+    vector<char> charFiles;
+    vector<char> charDirectories;
 
 public:
-    string getDirectory() {
-        return directory;
-    }
+	string getDirectory() {
+		return directory;
+	}
 
-    int getFileCount() {
-        return fileCount;
-    }
+	int getFileCount() {
+		return fileCount;
+	}
 
-    std::vector<std::string> getFiles() {
-        return files;
-    }
+	vector<string> getFiles() {
+		return files;
+	}
 
-    void printFiles() {
-        std::string nothingness;
+	void printFiles() {
+		string nothingness;
 
-    }
+	}
 
-    void printDirectories() {
-        for (std::vector<string>::const_iterator i = recursiveDirectories.begin(); i != recursiveDirectories.end(); ++i)
-            std::cout << *i << endl;
-    }
+	void printDirectories() {
+		for (vector<string>::const_iterator i = recursiveDirectories.begin(); i != recursiveDirectories.end(); ++i)
+			cout << *i << endl;
+	}
 
-    int countFiles() {
-        int cnt = std::count_if(
-            fs::recursive_directory_iterator(directory),
-            fs::recursive_directory_iterator(),
-            static_cast<bool(*)(const fs::path&)>(fs::is_regular_file)
-        );
-        return cnt;
-    }
+	int countFiles() {
+		int cnt = count_if(
+			fs::recursive_directory_iterator(directory),
+			fs::recursive_directory_iterator(),
+			static_cast<bool(*)(const fs::path&)>(fs::is_regular_file)
+		);
+		return cnt;
+	}
 
 
-    void indexFiles() {
-        for (auto & p : fs::recursive_directory_iterator(directory)) {      //create read only access 'p' to use in the loop.
-            if (is_regular_file(p)) {   // only shows regular files and no directories.
-                string converted = fsToString(p);
+	void indexFiles() {
+		for (auto & p : fs::recursive_directory_iterator(directory)) {		//create read only access 'p' to use in the loop.
+			if (is_regular_file(p)) {	// only shows regular files and no directories.
+				string converted = fsToString(p);
                 converted.erase(remove(converted.begin(), converted.end(), '"'), converted.end());
 
-                files.push_back(converted);
-            }
-            if (is_directory(p)) {
-                recursiveDirectories.push_back(fsToString(p));
-            }
-        }
+				files.push_back(converted);
+			}
+			if (is_directory(p)) {
+				recursiveDirectories.push_back(fsToString(p));
+			}
+		}
+	}
+
+	// Constructor
+	Scanner(string dir = "/root/testdir") {
+		directory = dir;			// Creates a scanner with a directory.
+		fileCount = countFiles();	// Counts files in dirs
+		indexFiles();				// Recursively scans dirs and files. Dirs are saved but not implemented to the API.
+	}
+};
+
+class Jsonrequest {
+private:
+json_object *json;
+
+public:
+    void addJsonString(string title, string content) {
+        json_object_object_add(json, title.c_str(), json_object_new_string(content.c_str()));
     }
 
-    // Constructor
-    Scanner(string dir = "/root/testdir") {
-        directory = dir;            // Creates a scanner with a directory.
-        fileCount = countFiles();   // Counts files in dirs
-        indexFiles();               // Recursively scans dirs and files. Dirs are saved but not implemented to the API.
+    void addJsonInt(int id) {
+        json_object_object_add(json, "id", json_object_new_int(id));
     }
+
+    string returnJsonObject() {
+        return json_object_to_json_string(json);
+    }
+
+    Jsonrequest() {
+        json = json_object_new_object();
+    }
+
 };
 
 string get_md5_sum(unsigned char* md) {
-    int i;
     string result;
     result.reserve(32);
-    char buf[32];
 
     for(size_t i = 0; i != 16; ++i){
         result += "0123456789abcdef" [md[i] / 16];
         result += "0123456789abcdef" [md[i] % 16];
     }
-
 
     return result;
 }
@@ -139,12 +159,7 @@ string get_md5_data(string path) {
     //printf("  %s\n", charPath);
 }
 
-void perform_curl(string path, string md5hash){
-    json_object *json;
-    json = json_object_new_object();
-    json_object_object_add(json, "id", json_object_new_int(1));
-    json_object_object_add(json, "path", json_object_new_string(path.c_str()));
-    json_object_object_add(json, "hash", json_object_new_string(md5hash.c_str()));
+void perform_curl(string jsonString){
 
     CURL *curl;
     CURLcode res;
@@ -155,7 +170,6 @@ void perform_curl(string path, string md5hash){
         return;
     }
     struct curl_slist *headers = NULL;
-    char *url = "http://localhost/api/hashapi/md5";
     headers = curl_slist_append(headers, "Accept: application/json");
     headers = curl_slist_append(headers, "Content-Type: application/json");
 
@@ -167,35 +181,41 @@ void perform_curl(string path, string md5hash){
 
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(json));
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString.c_str());
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.64.0");
 
     res = curl_easy_perform(curl);
-
+    if(CURLE_OK != res) {
+        cout << "Curl has failed" << endl << res << ": " << curl_easy_strerror(res) << endl;
+        cout << jsonString << " wasn't posted" << endl << endl;
+    }
     curl_easy_cleanup(curl);
     curl_global_cleanup();
 }
 
 int main(int argc, char *argv[]) {
 
-    unsigned char result[MD5_DIGEST_LENGTH];
-    string scannerPath "/root/wpscan/bin";
+    string scannerPath = "/root/wpscan/bin";
     if(NULL != argv[1]){
         scannerPath = (string)argv[1];
     }
 
-    Scanner scanner1(scannerPath);
-    scanner1.printFiles();
+	Scanner scanner1(scannerPath);
+	//scanner1.printFiles();
     vector<string> outfiles = scanner1.getFiles();
-    vector<string> md5files;
+
+    Jsonrequest *jRequests;
+    jRequests = new Jsonrequest[outfiles.size()];
+
     for(int i=0; i < outfiles.size(); i++){
-        //get_md5_data(outfiles[i]);
-        md5files.push_back(get_md5_data(outfiles[i]));
+        jRequests[i].addJsonInt(1);
+        jRequests[i].addJsonString("path", outfiles[i]);
+        jRequests[i].addJsonString("hash", get_md5_data(outfiles[i]));
     }
 
     for(int i=0; i < outfiles.size(); i++){
         //cout << outfiles[i] << "    " << md5files[i] << endl;
-        perform_curl(outfiles[i], md5files[i]);
+        perform_curl(jRequests[i].returnJsonObject());
     }
 
     return 0;
